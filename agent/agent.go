@@ -13,11 +13,39 @@ import (
 	"github.com/influxdata/telegraf/internal/config"
 	"github.com/influxdata/telegraf/internal/models"
 	"github.com/influxdata/telegraf/selfstat"
+	"context"
 )
 
 // Agent runs telegraf and collects data based on the given config
 type Agent struct {
 	Config *config.Config
+	// managedInputs must only be accessed within Run
+	managedInputs  map[string]*managedRunningInput
+	queuedChanges  chan *queuedInputChange
+	managedQueries chan IdListConsumer
+}
+
+const (
+	ConfigActionAdd    = iota
+	ConfigActionModify
+	ConfigActionRemove
+)
+
+const (
+	ManagedId = "managedId"
+)
+
+type queuedInputChange struct {
+	// configAction is one of ConfigActionAdd, ConfigActionModify, or ConfigActionRemove
+	configAction int
+	// input applies to add and modify
+	input *models.RunningInput
+	id string
+}
+
+type managedRunningInput struct {
+	cancel context.CancelFunc
+	input  *models.RunningInput
 }
 
 // NewAgent returns an Agent struct based off the given Config
@@ -38,6 +66,10 @@ func NewAgent(config *config.Config) (*Agent, error) {
 
 		config.Tags["host"] = a.Config.Agent.Hostname
 	}
+
+	a.managedInputs = make(map[string]*managedRunningInput)
+	a.managedQueries = make(chan IdListConsumer, 1)
+	a.queuedChanges = make(chan *queuedInputChange, 1)
 
 	return a, nil
 }
@@ -83,6 +115,27 @@ func (a *Agent) Close() error {
 	return err
 }
 
+func (a *Agent) AddManagedInput(id string, input *models.RunningInput) {
+	a.queuedChanges <- &queuedInputChange{
+		configAction: ConfigActionAdd,
+		input:        input,
+		id:           id,
+	}
+}
+
+func (a *Agent) RemoveManagedInput(id string) {
+	a.queuedChanges <- &queuedInputChange{
+		configAction: ConfigActionRemove,
+		id:           id,
+	}
+}
+
+type IdListConsumer func([]string)
+
+func (a *Agent) QueryManagedInputs(c IdListConsumer) {
+	a.managedQueries <- c
+}
+
 func panicRecover(input *models.RunningInput) {
 	if err := recover(); err != nil {
 		trace := make([]byte, 2048)
@@ -98,7 +151,7 @@ func panicRecover(input *models.RunningInput) {
 // gatherer runs the inputs that have been configured with their own
 // reporting interval.
 func (a *Agent) gatherer(
-	shutdown chan struct{},
+	shutdown <-chan struct{},
 	input *models.RunningInput,
 	interval time.Duration,
 	metricC chan telegraf.Metric,
@@ -141,7 +194,7 @@ func (a *Agent) gatherer(
 //   hung processes, and to prevent re-calling the same hung process over and
 //   over.
 func gatherWithTimeout(
-	shutdown chan struct{},
+	shutdown <-chan struct{},
 	input *models.RunningInput,
 	acc *accumulator,
 	timeout time.Duration,
@@ -384,20 +437,72 @@ func (a *Agent) Run(shutdown chan struct{}) error {
 		}(aggregator)
 	}
 
-	wg.Add(len(a.Config.Inputs))
+	ctx, cancel := context.WithCancel(context.Background())
+
 	for _, input := range a.Config.Inputs {
-		interval := a.Config.Agent.Interval.Duration
-		// overwrite global interval if this plugin has it's own.
-		if input.Config.Interval != 0 {
-			interval = input.Config.Interval
-		}
-		go func(in *models.RunningInput, interv time.Duration) {
-			defer wg.Done()
-			a.gatherer(shutdown, in, interv, metricC)
-		}(input, interval)
+		a.startInput(input, wg, ctx.Done(), metricC)
 	}
 
-	wg.Wait()
-	a.Close()
+	// convert wait group to channel op
+	wgDone := make(chan struct{}, 1)
+	go func() {
+		wg.Wait()
+		close(wgDone)
+	}()
+
+	for {
+		select {
+		case <-wgDone:
+			a.Close()
+			cancel()
+			return nil
+
+		case ch := <-a.queuedChanges:
+			switch ch.configAction {
+			case ConfigActionAdd:
+				subCtx, subCancel := context.WithCancel(ctx)
+
+				ch.input.Config.Tags[ManagedId] = ch.id
+				a.managedInputs[ch.id] = &managedRunningInput{
+					cancel: subCancel,
+					input:  ch.input,
+				}
+
+				log.Printf("Starting managed input %s", ch.id)
+				a.startInput(ch.input, wg, subCtx.Done(), metricC)
+
+			case ConfigActionRemove:
+				log.Printf("Stopping and removing managed input %s", ch.id)
+				if managedRunningInput, ok := a.managedInputs[ch.id]; ok {
+					managedRunningInput.cancel()
+					delete(a.managedInputs, ch.id)
+				}
+			}
+
+		case consumer := <-a.managedQueries:
+			ids := make([]string, len(a.managedInputs))
+			pos := 0
+			for k, _ := range a.managedInputs {
+				ids[pos] = k
+				pos++
+			}
+
+			consumer(ids)
+		}
+	}
+
 	return nil
+}
+
+func (a *Agent) startInput(input *models.RunningInput, wg sync.WaitGroup, shutdown <-chan struct{}, metricC chan telegraf.Metric) {
+	wg.Add(1)
+	interval := a.Config.Agent.Interval.Duration
+	// overwrite global interval if this plugin has it's own.
+	if input.Config.Interval != 0 {
+		interval = input.Config.Interval
+	}
+	go func(in *models.RunningInput, interv time.Duration) {
+		defer wg.Done()
+		a.gatherer(shutdown, in, interv, metricC)
+	}(input, interval)
 }

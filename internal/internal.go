@@ -220,7 +220,7 @@ func WaitTimeout(c *exec.Cmd, timeout time.Duration) error {
 // RandomSleep will sleep for a random amount of time up to max.
 // If the shutdown channel is closed, it will return before it has finished
 // sleeping.
-func RandomSleep(max time.Duration, shutdown chan struct{}) {
+func RandomSleep(max time.Duration, shutdown <-chan struct{}) {
 	if max == 0 {
 		return
 	}

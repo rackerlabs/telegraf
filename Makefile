@@ -108,4 +108,7 @@ test-short: vet
 vet:
 	go vet ./...
 
-.PHONY: test test-short vet build default
+gen:
+	protoc -I remote --go_out=plugins=grpc:remote remote/telegraf.proto
+
+.PHONY: test test-short vet build default gen

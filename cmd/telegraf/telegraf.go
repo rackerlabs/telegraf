@@ -22,6 +22,7 @@ import (
 	_ "github.com/influxdata/telegraf/plugins/outputs/all"
 	_ "github.com/influxdata/telegraf/plugins/processors/all"
 	"github.com/kardianos/service"
+	"github.com/influxdata/telegraf/remote"
 )
 
 var fDebug = flag.Bool("debug", false,
@@ -54,6 +55,9 @@ var fUsage = flag.String("usage", "",
 	"print usage for a plugin, ie, 'telegraf -usage mysql'")
 var fService = flag.String("service", "",
 	"operate on the service")
+var fRemote = flag.String("remote-config", "", "The host:port of a remote configuration server")
+var fRemoteRegion = flag.String("region", "",
+	"if using a remote configuration, the region containg this telegraf")
 
 // Telegraf version, populated linker.
 //   ie, -ldflags "-X main.version=`git describe --always --tags`"
@@ -95,6 +99,8 @@ The commands & flags are:
   --debug             print metrics as they're generated to stdout
   --pprof-addr        pprof address to listen on, format: localhost:6060 or :6060
   --quiet             run in quiet mode
+  --remote-config     the host:port of a remote configuration server
+  --region            if using a remote configuration, the region containg this telegraf
 
 Examples:
 
@@ -218,6 +224,13 @@ func reloadLoop(
 						log.Printf("E! Unable to remove pidfile: %s", err)
 					}
 				}()
+			}
+		}
+
+		if *fRemote != "" && *fRemoteRegion != "" {
+			remoteConn := remote.Connect(ag, *fRemote, *fRemoteRegion)
+			if remoteConn != nil {
+				go remoteConn.Run(shutdown)
 			}
 		}
 

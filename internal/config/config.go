@@ -28,6 +28,7 @@ import (
 
 	"github.com/influxdata/toml"
 	"github.com/influxdata/toml/ast"
+	"io"
 )
 
 var (
@@ -566,7 +567,22 @@ func (c *Config) LoadConfig(path string) error {
 		return fmt.Errorf("Error parsing %s, %s", path, err)
 	}
 
-	// Parse tags tables first:
+	return c.processTable(path, tbl)
+}
+
+func (c *Config) Load(source string, r io.Reader) error {
+	contents, err := ioutil.ReadAll(r)
+	if err != nil {
+		return err
+	}
+	tbl, err := parseContents(contents)
+
+	return c.processTable(source, tbl)
+}
+
+func (c *Config) processTable(path string, tbl *ast.Table) error {
+	var err error
+// Parse tags tables first:
 	for _, tableName := range []string{"tags", "global_tags"} {
 		if val, ok := tbl.Fields[tableName]; ok {
 			subTable, ok := val.(*ast.Table)
@@ -699,6 +715,11 @@ func parseFile(fpath string) (*ast.Table, error) {
 	}
 	// ugh windows why
 	contents = trimBOM(contents)
+
+	return parseContents(contents)
+}
+
+func parseContents(contents []byte) (*ast.Table, error) {
 
 	env_vars := envVarRe.FindAll(contents, -1)
 	for _, env_var := range env_vars {
