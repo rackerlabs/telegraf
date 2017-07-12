@@ -32,7 +32,6 @@ const (
 )
 
 const (
-	ManagedId = "managedId"
 )
 
 type queuedInputChange struct {
@@ -462,7 +461,6 @@ func (a *Agent) Run(shutdown chan struct{}) error {
 			case ConfigActionAdd:
 				subCtx, subCancel := context.WithCancel(ctx)
 
-				ch.input.Config.Tags[ManagedId] = ch.id
 				a.managedInputs[ch.id] = &managedRunningInput{
 					cancel: subCancel,
 					input:  ch.input,

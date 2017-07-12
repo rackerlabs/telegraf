@@ -26,6 +26,7 @@ import (
 	"github.com/influxdata/telegraf/internal/config"
 	"strings"
 	"time"
+	"github.com/influxdata/telegraf"
 )
 
 const KeepaliveSec = 10
@@ -110,6 +111,7 @@ func (c *RemoteConfigConnection) Run(shutdown chan struct{}) {
 			c.ag.QueryManagedInputs(func(ids []string) {
 
 				state, err := client.ReportState(ctx, &CurrentState{Tid: c.ourId, Region: c.region, ActiveConfigIds: ids})
+				log.Printf("DEBUG state report response, removed=%v, err=%v", state.RemovedId, err)
 				if err == nil {
 					for _, removedId := range state.RemovedId {
 						c.ag.RemoveManagedInput(removedId)
@@ -150,6 +152,11 @@ func (c *RemoteConfigConnection) processConfigPack(configPack *ConfigPack) {
 			continue
 		}
 
-		c.ag.AddManagedInput(newCfg.Id, telegrafCfg.Inputs[0])
+		input := telegrafCfg.Inputs[0]
+		input.Config.Tags[telegraf.TagManagedId] = newCfg.Id
+		if newCfg.TenantId != "" {
+			input.Config.Tags[telegraf.TagTenantId] = newCfg.TenantId
+		}
+		c.ag.AddManagedInput(newCfg.Id, input)
 	}
 }

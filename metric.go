@@ -15,6 +15,11 @@ const (
 	Untyped
 )
 
+const (
+	TagManagedId = "managedId"
+	TagTenantId = "tenantId"
+)
+
 type Metric interface {
 	// Serialize serializes the metric into a line-protocol byte buffer,
 	// including a newline at the end.
