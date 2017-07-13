@@ -38,7 +38,7 @@ package:
 	./scripts/build.py --package --version="$(VERSION)" --platform=linux --arch=all --upload
 
 # Get dependencies and use gdm to checkout changesets
-prepare:
+prepare: gen
 	go get github.com/sparrc/gdm
 	gdm restore
 
@@ -111,4 +111,7 @@ vet:
 gen:
 	protoc -I remote --go_out=plugins=grpc:remote remote/telegraf.proto
 
-.PHONY: test test-short vet build default gen
+local-image:
+	docker build -t local/telegraf .
+
+.PHONY: test test-short vet build default gen build-local-image
