@@ -88,6 +88,7 @@ func (c *RemoteConfigConnection) connect(shutdown chan struct{}) error {
 		log.Printf("E! Failed to make initial contact with homebase: \n%s\n", err.Error())
 		return err
 	}
+	log.Printf("DEBUG %v connected and ready to accept managed config\n", c.ourId)
 
 	configPacks := make(chan *ConfigPack, 1)
 
@@ -128,7 +129,8 @@ func (c *RemoteConfigConnection) connect(shutdown chan struct{}) error {
 
 				state, err := client.ReportState(ctx, &CurrentState{Tid: c.ourId, Region: c.region, ActiveConfigIds: ids})
 				if err == nil {
-					log.Printf("DEBUG state report %v response, removed=%v, err=%v", ids, state.RemovedId, err)
+					log.Printf("DEBUG %v state report %v response, removed=%v, err=%v",
+						c.ourId, ids, state.RemovedId, err)
 					for _, removedId := range state.RemovedId {
 						c.ag.RemoveManagedInput(removedId)
 					}
@@ -167,13 +169,17 @@ func (c *RemoteConfigConnection) processConfigPack(configPack *ConfigPack) {
 			continue
 		}
 
-		input := telegrafCfg.Inputs[0]
-		input.Config.Tags[telegraf.TagManagedId] = newCfg.Id
-		input.Config.Tags[telegraf.TagRegion] = c.region
-		input.Config.Tags[telegraf.TagTelegrafId] = c.ourId
-		if newCfg.TenantId != "" {
-			input.Config.Tags[telegraf.TagTenantId] = newCfg.TenantId
+		if len(telegrafCfg.Inputs) >= 1 {
+			input := telegrafCfg.Inputs[0]
+			input.Config.Tags[telegraf.TagManagedId] = newCfg.Id
+			input.Config.Tags[telegraf.TagRegion] = c.region
+			input.Config.Tags[telegraf.TagTelegrafId] = c.ourId
+			if newCfg.TenantId != "" {
+				input.Config.Tags[telegraf.TagTenantId] = newCfg.TenantId
+			}
+			c.ag.AddManagedInput(newCfg.Id, input)
+		} else {
+			log.Printf("W! No inputs in given config pack")
 		}
-		c.ag.AddManagedInput(newCfg.Id, input)
 	}
 }
