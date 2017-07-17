@@ -20,6 +20,7 @@ const (
 	TagTenantId = "tenantId"
 	TagRegion = "region"
 	TagTelegrafId = "telegrafId"
+	TagTitle = "title"
 )
 
 type Metric interface {
