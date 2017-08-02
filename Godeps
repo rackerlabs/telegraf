@@ -61,9 +61,9 @@ github.com/zensqlmonitor/go-mssqldb ffe5510c6fa5e15e6d983210ab501c815b56b363
 golang.org/x/crypto dc137beb6cce2043eb6b5f223ab8bf51c32459f4
 golang.org/x/net 054b33e6527139ad5b1ec2f6232c3b175bd9a30c
 golang.org/x/text 506f9d5c962f284575e88337e7d9296d27e729d3
-gopkg.in/asn1-ber.v1 4e86f4367175e39f69d9358a5f17b4dda270378d
 google.golang.org/genproto aa2eb687b4d3e17154372564ad8d6bf11c3cf21f
 google.golang.org/grpc 41d9b6ea2a6335f3a22074ed35c0542c9da1baf4
+gopkg.in/asn1-ber.v1 4e86f4367175e39f69d9358a5f17b4dda270378d
 gopkg.in/fatih/pool.v2 6e328e67893eb46323ad06f0e92cb9536babbabc
 gopkg.in/gorethink/gorethink.v3 7ab832f7b65573104a555d84a27992ae9ea1f659
 gopkg.in/ldap.v2 8168ee085ee43257585e50c6441aadf54ecb2c9f
