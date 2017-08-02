@@ -47,7 +47,7 @@ func Connect(ag *agent.Agent, homebaseAddr string, region string) *RemoteConfigC
 		region = "default"
 	}
 
-	log.Printf("Starting remote managed input in region %v using %v as %v",
+	log.Printf("I! Starting remote managed input in region %v using %v as %v",
 		region, homebaseAddr, ourId)
 
 	return &RemoteConfigConnection{
@@ -59,36 +59,48 @@ func Connect(ag *agent.Agent, homebaseAddr string, region string) *RemoteConfigC
 }
 
 // Run is a blocking operation that will service incoming managed configurations and report status.
+// It will also re-connect when losing connectivity with the far-end.
+// A closure of the shutdown channel indicates that the remote connection should be closed and this function conclude.
 func (c *RemoteConfigConnection) Run(shutdown chan struct{}) {
 	for {
-		err := c.connect(shutdown)
+		err := c.connect(shutdown, nil)
 		if err == nil {
 			// normal shutdown
 			return
 		}
 
-		log.Println("DEBUG sleeping until next connection attempt")
+		log.Println("D! sleeping until next connection attempt")
 		time.Sleep(5 * time.Second)
 	}
 }
 
-func (c *RemoteConfigConnection) connect(shutdown chan struct{}) error {
+// RunWithClient is a blocking operation that will service incoming managed configurations and report status.
+// Unlike Run, this function will return upon loss of the connection to the far-end.
+// A closure of the shutdown channel indicates that the remote connection should be closed and this function conclude.
+// It returns an error that caused the connection to be close abnormally or nil if shutdown was indicated.
+func (c *RemoteConfigConnection) RunWithClient(shutdown chan struct{}, client TelegrafRemoteClient) error {
+	return c.connect(shutdown, client)
+}
 
-	conn, err := grpc.Dial(c.homebaseAddr, grpc.WithInsecure())
-	if err != nil {
-		log.Printf("E! Failed to connect to homebase: %v\n%v\n", c.homebaseAddr, err.Error())
-		return err
+func (c *RemoteConfigConnection) connect(shutdown chan struct{}, client TelegrafRemoteClient) error {
+
+	if client == nil {
+		conn, err := grpc.Dial(c.homebaseAddr, grpc.WithInsecure())
+		if err != nil {
+			log.Printf("E! Failed to connect to homebase: %v\n%v\n", c.homebaseAddr, err.Error())
+			return err
+		}
+		defer conn.Close()
+		client = NewTelegrafRemoteClient(conn)
 	}
-	defer conn.Close()
 
-	client := NewTelegrafRemoteClient(conn)
 	ctx := context.Background()
 	configStream, err := client.StartConfigStreaming(ctx, &Greeting{Tid: c.ourId, Region: c.region})
 	if err != nil {
 		log.Printf("E! Failed to make initial contact with homebase: \n%s\n", err.Error())
 		return err
 	}
-	log.Printf("DEBUG %v connected and ready to accept managed config\n", c.ourId)
+	log.Printf("D! %v connected and ready to accept managed config\n", c.ourId)
 
 	configPacks := make(chan *ConfigPack, 1)
 
@@ -106,7 +118,7 @@ func (c *RemoteConfigConnection) connect(shutdown chan struct{}) error {
 			}
 
 			if err != nil {
-				log.Printf("While receiving config pack\n%s\n", err.Error())
+				log.Printf("E! While receiving config pack\n%s\n", err.Error())
 				return
 			}
 
@@ -120,7 +132,7 @@ func (c *RemoteConfigConnection) connect(shutdown chan struct{}) error {
 	for {
 		select {
 		case configPack := <-configPacks:
-			log.Printf("Received config pack: %v", configPack)
+			log.Printf("I! Received config pack: %v", configPack)
 
 			c.processConfigPack(configPack)
 
@@ -129,7 +141,7 @@ func (c *RemoteConfigConnection) connect(shutdown chan struct{}) error {
 
 				state, err := client.ReportState(ctx, &CurrentState{Tid: c.ourId, Region: c.region, ActiveConfigIds: ids})
 				if err == nil {
-					log.Printf("DEBUG %v state report %v response, removed=%v, err=%v",
+					log.Printf("D! %v state report %v response, removed=%v, err=%v",
 						c.ourId, ids, state.RemovedId, err)
 					for _, removedId := range state.RemovedId {
 						c.ag.RemoveManagedInput(removedId)

@@ -492,11 +492,11 @@ func (a *Agent) Run(shutdown chan struct{}) error {
 					input:  ch.input,
 				}
 
-				log.Printf("Starting managed input %s", ch.id)
+				log.Printf("I! Starting managed input %s", ch.id)
 				a.startInput(ch.input, wg, subCtx.Done(), metricC)
 
 			case ConfigActionRemove:
-				log.Printf("Stopping and removing managed input %s", ch.id)
+				log.Printf("I! Stopping and removing managed input %s", ch.id)
 				if managedRunningInput, ok := a.managedInputs[ch.id]; ok {
 					managedRunningInput.cancel()
 					delete(a.managedInputs, ch.id)
@@ -504,6 +504,7 @@ func (a *Agent) Run(shutdown chan struct{}) error {
 			}
 
 		case consumer := <-a.managedQueries:
+			log.Printf("D! Processing managed input query")
 			ids := make([]string, len(a.managedInputs))
 			pos := 0
 			for k, _ := range a.managedInputs {
