@@ -32,15 +32,8 @@ There are many ways to contribute:
 
 ## Installation:
 
-You can either download the binaries directly from the
-[downloads](https://www.influxdata.com/downloads) page.
-
-A few alternate installs are available here as well:
-
-### FreeBSD tarball:
-
-Latest:
-* https://dl.influxdata.com/telegraf/releases/telegraf-VERSION_freebsd_amd64.tar.gz
+You can download the binaries directly from the [downloads](https://www.influxdata.com/downloads) page
+or from the [releases](https://github.com/influxdata/telegraf/releases) section.
 
 ### Ansible Role:
 
@@ -48,9 +41,10 @@ Ansible role: https://github.com/rossmcdonald/telegraf
 
 ### From Source:
 
-Telegraf manages dependencies via [gdm](https://github.com/sparrc/gdm),
-which gets installed via the Makefile
-if you don't have it already. You also must build with golang version 1.8+.
+Telegraf requires golang version 1.8+, the Makefile requires GNU make.
+
+Dependencies are managed with [gdm](https://github.com/sparrc/gdm),
+which is installed by the Makefile if you don't have it already.
 
 1. [Install Go](https://golang.org/doc/install)
 2. [Setup your GOPATH](https://golang.org/doc/code.html#GOPATH)
@@ -81,7 +75,7 @@ telegraf --input-filter cpu --output-filter influxdb config
 #### Run a single telegraf collection, outputing metrics to stdout
 
 ```
-telegraf --config telegraf.conf -test
+telegraf --config telegraf.conf --test
 ```
 
 #### Run telegraf with all plugins defined in config file
@@ -93,7 +87,7 @@ telegraf --config telegraf.conf
 #### Run telegraf, enabling the cpu & memory input, and influxdb output plugins
 
 ```
-telegraf --config telegraf.conf -input-filter cpu:mem -output-filter influxdb
+telegraf --config telegraf.conf -input-filter cpu:mem --output-filter influxdb
 ```
 
 
@@ -126,6 +120,8 @@ configuration options.
 * [exec](./plugins/inputs/exec) (generic executable plugin, support JSON, influx, graphite and nagios)
 * [fail2ban](./plugins/inputs/fail2ban)
 * [filestat](./plugins/inputs/filestat)
+* [fluentd](./plugins/inputs/fluentd)
+* [graylog](./plugins/inputs/graylog)
 * [haproxy](./plugins/inputs/haproxy)
 * [hddtemp](./plugins/inputs/hddtemp)
 * [http_response](./plugins/inputs/http_response)

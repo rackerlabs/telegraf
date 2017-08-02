@@ -14,8 +14,11 @@
 
 ### New Plugins
 
-- [fail2ban](./plugins/inputs/fail2ban/README.md)
-- [minecraft](./plugins/inputs/minecraft/README.md)
+- [fail2ban](./plugins/inputs/fail2ban/README.md) - Thanks to @grugrut
+- [minecraft](./plugins/inputs/minecraft/README.md) - Thanks to @adamperlin & @Ayrdrie
+- [fluentd](./plugins/inputs/fluentd/README.md) - Thanks to @DanKans
+- [openldap](./plugins/inputs/openldap/README.md) - Thanks to @cobaugh
+- [histogram](./plugins/aggregators/histogram/README.md) - Thanks to @vlamug
 
 ### Features
 
@@ -37,6 +40,14 @@
 - [#2963](https://github.com/influxdata/telegraf/pull/2963): Add support for RethinkDB 1.0 handshake protocol.
 - [#2943](https://github.com/influxdata/telegraf/pull/2943): Add optional usage_active and time_active CPU metrics.
 - [#2973](https://github.com/influxdata/telegraf/pull/2973): Change default prometheus_client port.
+- [#2661](https://github.com/influxdata/telegraf/pull/2661): Add fluentd input plugin.
+- [#2990](https://github.com/influxdata/telegraf/pull/2990): Add result_type field to net_response input plugin.
+- [#2571](https://github.com/influxdata/telegraf/pull/2571): Add read timeout to socket_listener
+- [#2612](https://github.com/influxdata/telegraf/pull/2612): Add input plugin for OpenLDAP.
+- [#3042](https://github.com/influxdata/telegraf/pull/3042): Add network option to dns_query.
+- [#3054](https://github.com/influxdata/telegraf/pull/3054): Add redis_version field to redis input.
+- [#3063](https://github.com/influxdata/telegraf/pull/3063): Add tls options to docker input.
+- [#2387](https://github.com/influxdata/telegraf/pull/2387): Add histogram aggregator plugin.
 
 ### Bugfixes
 
@@ -53,6 +64,35 @@
 - [#2917](https://github.com/influxdata/telegraf/issues/2917): Fix Aerospike input adds all nodes to a single series.
 - [#2452](https://github.com/influxdata/telegraf/pull/2452): Improve Prometheus Client output documentation.
 - [#2984](https://github.com/influxdata/telegraf/pull/2984): Display error message if prometheus output fails to listen.
+- [#2997](https://github.com/influxdata/telegraf/issues/2997): Fix elasticsearch output content type detection warning.
+- [#2914](https://github.com/influxdata/telegraf/issues/2914): Prevent possible deadlock when using aggregators.
+- [#2860](https://github.com/influxdata/telegraf/issues/2860): Fix combined tagdrop/tagpass filtering.
+- [#3036](https://github.com/influxdata/telegraf/pull/3036): Fix filtering when both pass and drop match an item.
+- [#2964](https://github.com/influxdata/telegraf/issues/2964): Only report cpu usage for online cpus in docker input.
+- [#3050](https://github.com/influxdata/telegraf/pull/3050): Start first aggregator period at startup time.
+- [#2906](https://github.com/influxdata/telegraf/issues/2906): Fix panic in logparser if file cannot be opened.
+- [#2886](https://github.com/influxdata/telegraf/issues/2886): Default to localhost if zookeeper has no servers set.
+- [#2457](https://github.com/influxdata/telegraf/issues/2457): Fix docker memory and cpu reporting in Windows.
+- [#3058](https://github.com/influxdata/telegraf/issues/3058): Allow iptable entries with trailing text.
+- [#1680](https://github.com/influxdata/telegraf/issues/1680): Sanitize password from couchbase metric.
+
+## v1.3.5 [2017-07-26]
+
+### Bugfixes
+
+- [#3049](https://github.com/influxdata/telegraf/issues/3049): Fix prometheus output cannot be reloaded.
+- [#3037](https://github.com/influxdata/telegraf/issues/3037): Fix filestat reporting exists when cannot list directory.
+- [#2386](https://github.com/influxdata/telegraf/issues/2386): Fix ntpq parse issue when using dns_lookup.
+- [#2554](https://github.com/influxdata/telegraf/issues/2554): Fix panic when agent.interval = "0s".
+
+## v1.3.4 [2017-07-12]
+
+### Bugfixes
+
+- [#3001](https://github.com/influxdata/telegraf/issues/3001): Fix handling of escape characters within fields.
+- [#2988](https://github.com/influxdata/telegraf/issues/2988): Fix chrony plugin does not track system time offset.
+- [#3004](https://github.com/influxdata/telegraf/issues/3004): Do not allow metrics with trailing slashes.
+- [#3011](https://github.com/influxdata/telegraf/issues/3011): Prevent Write from being called concurrently.
 
 ## v1.3.3 [2017-06-28]
 
