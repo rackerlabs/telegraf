@@ -21,6 +21,8 @@ const (
 	TagRegion = "region"
 	TagTelegrafId = "telegrafId"
 	TagTitle = "title"
+	TagOS = "os"
+	TagArch = "arch"
 )
 
 type Metric interface {

@@ -56,6 +56,7 @@ var fUsage = flag.String("usage", "",
 var fService = flag.String("service", "",
 	"operate on the service")
 var fRemote = flag.String("remote-config", "", "The host:port of a remote configuration server")
+var fTags = flag.String("tags", "", "One or more name=value global tags to add to configuration, separator is :")
 
 // Telegraf version, populated linker.
 //   ie, -ldflags "-X main.version=`git describe --always --tags`"
@@ -164,6 +165,17 @@ func reloadLoop(
 		if int64(c.Agent.FlushInterval.Duration) <= 0 {
 			log.Fatalf("E! Agent flush_interval must be positive; found %s",
 				c.Agent.Interval.Duration)
+		}
+
+		if *fTags != "" {
+			for _, tagPair := range strings.Split(*fTags, ":") {
+				parts := strings.SplitN(tagPair, "=", 2)
+				if len(parts) < 2 {
+					log.Fatalf("Invalid name=value in tags: %s", tagPair)
+				}
+
+				c.Tags[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+			}
 		}
 
 		ag, err := agent.NewAgent(c)

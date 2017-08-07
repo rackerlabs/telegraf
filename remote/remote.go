@@ -28,6 +28,7 @@ import (
 	"time"
 	"github.com/influxdata/telegraf"
 	"errors"
+	"runtime"
 )
 
 const (
@@ -174,6 +175,9 @@ func (c *RemoteConfigConnection) phoneHome(client TelegrafRemoteClient, ctx cont
 	greeting := &Greeting{Identifiers: c.identifiers}
 
 	greeting.NodeTag = make(map[string]string)
+	// lower precedence, default tags
+	greeting.NodeTag[telegraf.TagOS] = runtime.GOOS
+	greeting.NodeTag[telegraf.TagArch] = runtime.GOARCH
 	// NOTE 'host' is already populated by the standard config
 	for k, v := range c.ag.Config.Tags {
 		greeting.NodeTag[k] = v
