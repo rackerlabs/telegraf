@@ -30,32 +30,36 @@ import (
 	"errors"
 )
 
-const KeepaliveSec = 5
+const (
+	KeepaliveSec         = 5
+	ReconnectIntervalSec = 5
+)
 
 type RemoteConfigConnection struct {
 	homebaseAddr string
-	region       string
-	ourId        string
+	identifiers  *Identifiers
 	ag           *agent.Agent
 }
 
 // Connect is a blocking operation that will connect to the given homebase instance and manage
 // inputs with the given Agent instance
-func Connect(ag *agent.Agent, homebaseAddr string, region string) *RemoteConfigConnection {
+func Connect(ag *agent.Agent, homebaseAddr string) *RemoteConfigConnection {
 	ourId := uuid.NewV4().String()
-	if region == "" {
-		region = "default"
-	}
 
-	log.Printf("I! Starting remote managed input in region %v using %v as %v",
-		region, homebaseAddr, ourId)
-
-	return &RemoteConfigConnection{
+	connection := &RemoteConfigConnection{
 		homebaseAddr: homebaseAddr,
-		region:       region,
-		ourId:        ourId,
-		ag:           ag,
+		identifiers: &Identifiers{
+			Region: ag.Config.Tags[telegraf.TagRegion],
+			Tenant: ag.Config.Tags[telegraf.TagTenantId],
+			Tid:    ourId,
+		},
+		ag: ag,
 	}
+
+	log.Printf("I! Starting remote managed input=%v using %v",
+		connection.identifiers, homebaseAddr)
+
+	return connection
 }
 
 // Run is a blocking operation that will service incoming managed configurations and report status.
@@ -70,8 +74,12 @@ func (c *RemoteConfigConnection) Run(shutdown chan struct{}) {
 		}
 
 		log.Println("D! sleeping until next connection attempt")
-		time.Sleep(5 * time.Second)
+		time.Sleep(ReconnectIntervalSec * time.Second)
 	}
+}
+
+func (c *RemoteConfigConnection) identifier() string {
+	return c.identifiers.Tid;
 }
 
 // RunWithClient is a blocking operation that will service incoming managed configurations and report status.
@@ -95,12 +103,12 @@ func (c *RemoteConfigConnection) connect(shutdown chan struct{}, client Telegraf
 	}
 
 	ctx := context.Background()
-	configStream, err := client.StartConfigStreaming(ctx, &Greeting{Tid: c.ourId, Region: c.region})
+	configStream, err := c.phoneHome(client, ctx)
 	if err != nil {
 		log.Printf("E! Failed to make initial contact with homebase: \n%s\n", err.Error())
 		return err
 	}
-	log.Printf("D! %v connected and ready to accept managed config\n", c.ourId)
+	log.Printf("D! %v connected and ready to accept managed config\n", c.identifier())
 
 	configPacks := make(chan *ConfigPack, 1)
 
@@ -139,10 +147,12 @@ func (c *RemoteConfigConnection) connect(shutdown chan struct{}, client Telegraf
 		case <-keepaliveTicker.C:
 			c.ag.QueryManagedInputs(func(ids []string) {
 
-				state, err := client.ReportState(ctx, &CurrentState{Tid: c.ourId, Region: c.region, ActiveConfigIds: ids})
+				state, err := client.ReportState(ctx, &CurrentState{
+					Identifiers: c.identifiers, ActiveConfigIds: ids,
+				})
 				if err == nil {
 					log.Printf("D! %v state report %v response, removed=%v, err=%v",
-						c.ourId, ids, state.RemovedId, err)
+						c.identifier(), ids, state.RemovedId, err)
 					for _, removedId := range state.RemovedId {
 						c.ag.RemoveManagedInput(removedId)
 					}
@@ -159,6 +169,17 @@ func (c *RemoteConfigConnection) connect(shutdown chan struct{}, client Telegraf
 		}
 	}
 
+}
+func (c *RemoteConfigConnection) phoneHome(client TelegrafRemoteClient, ctx context.Context) (TelegrafRemote_StartConfigStreamingClient, error) {
+	greeting := &Greeting{Identifiers: c.identifiers}
+
+	greeting.NodeTag = make(map[string]string)
+	// NOTE 'host' is already populated by the standard config
+	for k, v := range c.ag.Config.Tags {
+		greeting.NodeTag[k] = v
+	}
+
+	return client.StartConfigStreaming(ctx, greeting)
 }
 
 func (c *RemoteConfigConnection) processConfigPack(configPack *ConfigPack) {
@@ -188,8 +209,7 @@ func (c *RemoteConfigConnection) processConfigPack(configPack *ConfigPack) {
 			// http_response,method=GET,managedId=07495f20-e88c-466f-9c8c-78cf54a7d4cc,region=west,telegrafId=c8d6d2df-eb55-462b-aa09-52ac02d78efc,tenantId=ac-1,title=http\ response,server=https://www.rackspace.com response_time=0.167121098,http_response_code=200i,result_type="success" 1500308549000000000
 
 			input.Config.Tags[telegraf.TagManagedId] = newCfg.Id
-			input.Config.Tags[telegraf.TagRegion] = c.region
-			input.Config.Tags[telegraf.TagTelegrafId] = c.ourId
+			input.Config.Tags[telegraf.TagTelegrafId] = c.identifiers.Tid
 			if newCfg.TenantId != "" {
 				input.Config.Tags[telegraf.TagTenantId] = newCfg.TenantId
 			}

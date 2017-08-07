@@ -56,8 +56,6 @@ var fUsage = flag.String("usage", "",
 var fService = flag.String("service", "",
 	"operate on the service")
 var fRemote = flag.String("remote-config", "", "The host:port of a remote configuration server")
-var fRemoteRegion = flag.String("region", "",
-	"if using a remote configuration, the region containg this telegraf")
 
 // Telegraf version, populated linker.
 //   ie, -ldflags "-X main.version=`git describe --always --tags`"
@@ -100,7 +98,6 @@ The commands & flags are:
   --pprof-addr        pprof address to listen on, format: localhost:6060 or :6060
   --quiet             run in quiet mode
   --remote-config     the host:port of a remote configuration server
-  --region            if using a remote configuration, the region containg this telegraf
 
 Examples:
 
@@ -237,8 +234,8 @@ func reloadLoop(
 			}
 		}
 
-		if *fRemote != "" && *fRemoteRegion != "" {
-			remoteConn := remote.Connect(ag, *fRemote, *fRemoteRegion)
+		if *fRemote != "" {
+			remoteConn := remote.Connect(ag, *fRemote)
 			if remoteConn != nil {
 				go remoteConn.Run(shutdown)
 			}

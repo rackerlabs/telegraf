@@ -32,6 +32,8 @@ const (
 )
 
 const (
+	queuedChangesSize = 100
+	managedQueriesSize = 10
 )
 
 type queuedInputChange struct {
@@ -67,8 +69,8 @@ func NewAgent(config *config.Config) (*Agent, error) {
 	}
 
 	a.managedInputs = make(map[string]*managedRunningInput)
-	a.managedQueries = make(chan IdListConsumer, 1)
-	a.queuedChanges = make(chan *queuedInputChange, 1)
+	a.managedQueries = make(chan IdListConsumer, managedQueriesSize)
+	a.queuedChanges = make(chan *queuedInputChange, queuedChangesSize)
 
 	return a, nil
 }
