@@ -208,6 +208,7 @@ func (c *RemoteConfigConnection) processConfigPack(configPack *ConfigPack) {
 
 		if len(telegrafCfg.Inputs) >= 1 {
 			input := telegrafCfg.Inputs[0]
+			input.SetDefaultTags(c.ag.Config.Tags)
 
 			// Enrich the tags to allow external identification of these managed inputs:
 			// http_response,method=GET,managedId=07495f20-e88c-466f-9c8c-78cf54a7d4cc,region=west,telegrafId=c8d6d2df-eb55-462b-aa09-52ac02d78efc,tenantId=ac-1,title=http\ response,server=https://www.rackspace.com response_time=0.167121098,http_response_code=200i,result_type="success" 1500308549000000000
