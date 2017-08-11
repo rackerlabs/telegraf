@@ -183,6 +183,7 @@ func (c *RemoteConfigConnection) phoneHome(client TelegrafRemoteClient, ctx cont
 		greeting.NodeTag[k] = v
 	}
 
+	log.Printf("I! %v phoning home with the tags %v", greeting.Identifiers, greeting.NodeTag)
 	return client.StartConfigStreaming(ctx, greeting)
 }
 
